@@ -6,7 +6,10 @@ use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Context\ContextController;
-
+use App\Http\Controllers\Expense\CategoryController;
+use App\Http\Controllers\Expense\ExpenseController;
+use App\Http\Controllers\Balance\BalanceController;
+use App\Http\Controllers\Budget\BudgetController;
 /*
 |--------------------------------------------------------------------------
 | Public Auth Routes
@@ -39,6 +42,53 @@ Route::middleware('auth:api')->group(function () {
         Route::post('/refresh', [AuthController::class, 'refresh']);
         Route::get('/me',       [AuthController::class, 'me']);
         Route::patch('/profile',[ProfileController::class, 'update']);
+     
+    // ── Categories ────────────────────────────────────────────────────────
+    Route::prefix('categories')->group(function () {
+        Route::get('/',          [CategoryController::class, 'index']);   // list system + custom
+        Route::post('/',         [CategoryController::class, 'store']);   // Pro: create custom
+        Route::delete('/{category}', [CategoryController::class, 'destroy']); // delete custom
+    });
+
+    // ── Expenses ──────────────────────────────────────────────────────────
+    Route::prefix('expenses')->group(function () {
+        Route::get('/',                    [ExpenseController::class, 'index']);   // FR-EX-08
+        Route::post('/',                   [ExpenseController::class, 'store']);   // FR-EX-01
+        Route::get('/{expense}',           [ExpenseController::class, 'show']);
+        Route::put('/{expense}',           [ExpenseController::class, 'update']); // FR-EX-05
+        Route::delete('/{expense}',        [ExpenseController::class, 'destroy']); // FR-EX-06
+        Route::patch('/{expense}/settle',  [ExpenseController::class, 'settle']); // FR-EX-09
+    });
+
+    // ── Balance & Settlement ──────────────────────────────────────────────
+    Route::prefix('balances')->group(function () {
+
+        // FR-BA-02: Balance summary (who owes whom)
+        Route::get('/summary', [BalanceController::class, 'summary']);
+
+        // FR-BA-03 / FR-BA-04: Record settlement + update balance atomically
+        Route::post('/settlements', [BalanceController::class, 'recordSettlement']);
+
+        // FR-BA-05: Settlement history
+        Route::get('/settlements', [BalanceController::class, 'settlementHistory']);
+    });
+
+    // ── Budget ────────────────────────────────────────────────────────────
+    Route::prefix('budgets')->group(function () {
+
+        // FR-BU-03: List budgets with progress for a month
+        Route::get('/',              [BudgetController::class, 'index']);
+
+        // FR-BU-01 / FR-BU-02: Set overall or category budget
+        Route::post('/',             [BudgetController::class, 'store']);
+
+        // Update budget amount
+        Route::put('/{budget}',      [BudgetController::class, 'update']);
+
+        // Delete budget entry
+        Route::delete('/{budget}',   [BudgetController::class, 'destroy']);
+    });
+
     });
 
     // Day 2+ routes go here...
@@ -65,5 +115,13 @@ Route::middleware('auth:api')->group(function () {
         Route::post('/{context}/revoke-invite',             [ContextController::class, 'revokeInviteCode']);
     });
 
+    Route::middleware('auth:api')->group(function () {
+
+    // ── (existing auth + context routes) ─────────────────────────────────
+
 
 });
+
+
+});
+

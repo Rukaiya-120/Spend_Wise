@@ -12,7 +12,9 @@ use App\Services\ContextService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-
+/**
+ * @OA\Tag(name="Context")
+ */
 class ContextController extends Controller
 {
     public function __construct(private ContextService $contextService) {}
@@ -20,6 +22,14 @@ class ContextController extends Controller
     /**
      * GET /api/contexts
      * FR-CT-06: Returns personal context + all group contexts the user belongs to.
+     */
+
+    /**
+     * @OA\Get(
+     *     path="/api/contexts",
+     *     tags={"Context"},
+     *     summary="List contexts"
+     * )
      */
     public function index(): JsonResponse
     {
@@ -32,6 +42,15 @@ class ContextController extends Controller
      * POST /api/contexts/groups
      * FR-CT-02, FR-CT-04, FR-CT-07
      */
+
+    /**
+     * @OA\Post(
+     *     path="/api/contexts/groups",
+     *     tags={"Context"},
+     *     summary="Create group"
+     * )
+     */
+
     public function createGroup(CreateGroupRequest $request): JsonResponse
     {
         $context = $this->contextService->createGroup(
@@ -53,6 +72,15 @@ class ContextController extends Controller
      * POST /api/contexts/join
      * FR-CT-03, FR-CT-08
      */
+
+    /**
+     * @OA\Post(
+     *     path="/api/contexts/join",
+     *     tags={"Context"},
+     *     summary="Join group"
+     * )
+     */
+
     public function joinGroup(JoinGroupRequest $request): JsonResponse
     {
         $context = $this->contextService->joinGroup(
@@ -70,6 +98,15 @@ class ContextController extends Controller
      * GET /api/contexts/{context}
      * View a single context detail.
      */
+
+    /**
+     * @OA\Get(
+     *     path="/api/contexts/{context}",
+     *     tags={"Context"},
+     *     summary="Get context"
+     * )
+     */
+
     public function show(Context $context): JsonResponse
     {
         $this->authorizeContextAccess($context);
@@ -86,6 +123,15 @@ class ContextController extends Controller
      * POST /api/contexts/{context}/approve/{userId}
      * FR-CT-05: Admin approves a pending member.
      */
+
+        /**
+     * @OA\Post(
+     *     path="/api/contexts/{context}/approve/{userId}",
+     *     tags={"Context"},
+     *     summary="Approve member"
+     * )
+     */
+
     public function approveMember(Context $context, string $userId): JsonResponse
     {
         $this->authorize('manage', $context);
@@ -102,6 +148,15 @@ class ContextController extends Controller
      * DELETE /api/contexts/{context}/members/{userId}
      * FR-CT-05: Admin removes a member.
      */
+
+    /**
+     * @OA\Delete(
+     *     path="/api/contexts/{context}/members/{userId}",
+     *     tags={"Context"},
+     *     summary="Remove member"
+     * )
+     */
+
     public function removeMember(Context $context, string $userId): JsonResponse
     {
         $this->authorize('manage', $context);
@@ -115,6 +170,15 @@ class ContextController extends Controller
      * POST /api/contexts/{context}/transfer-admin
      * FR-CT-05: Transfer admin rights.
      */
+
+    /**
+     * @OA\Post(
+     *     path="/api/contexts/{context}/transfer-admin",
+     *     tags={"Context"},
+     *     summary="Transfer admin"
+     * )
+     */
+
     public function transferAdmin(Context $context, TransferAdminRequest $request): JsonResponse
     {
         $this->authorize('manage', $context);
@@ -132,6 +196,15 @@ class ContextController extends Controller
      * POST /api/contexts/{context}/revoke-invite
      * FR-CT-05: Admin revokes the invite code (generates a new one).
      */
+
+    /**
+     * @OA\Post(
+     *     path="/api/contexts/{context}/revoke-invite",
+     *     tags={"Context"},
+     *     summary="Revoke invite"
+     * )
+     */
+
     public function revokeInviteCode(Context $context): JsonResponse
     {
         $this->authorize('manage', $context);
