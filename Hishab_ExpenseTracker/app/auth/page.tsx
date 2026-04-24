@@ -30,11 +30,16 @@ export default function AuthPage() {
 
       await authApi.register(name, email, password, confirmPassword);
     } else {
-      await authApi.login(email, password);
+      const data = await authApi.login(email, password);
+
+      localStorage.setItem('access_token', data.access_token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+
+      router.push('/');
     }
 
     // Redirect after success
-    window.location.href = '/';
+    router.push('/');
   } catch (err: any) {
     setError(
       err.response?.data?.message ||

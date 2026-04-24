@@ -31,12 +31,16 @@ api.interceptors.response.use(
           headers: {
             Authorization: `Bearer ${localStorage.getItem('access_token')}`
           }
-        });
+        });originalRequest.headers
         
-        const { token } = response.data;
+        const token = response.data.access_token || response.data.token;
         localStorage.setItem('access_token', token);
         
-        originalRequest.headers.Authorization = `Bearer ${token}`;
+        originalRequest.headers = {
+                  ...originalRequest.headers,
+                  Authorization: `Bearer ${token}`,
+        };
+
         return api(originalRequest);
       } catch (refreshError) {
         // If refresh fails, log out the user
