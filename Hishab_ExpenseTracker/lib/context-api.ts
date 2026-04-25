@@ -3,27 +3,25 @@ import api from './axios';
 export const contextApi = {
   getContexts: async () => {
     const res = await api.get('/contexts');
+    const data = res.data;
+    // Normalize: backend may return { data: [...] } or plain array
+    return Array.isArray(data)
+      ? data
+      : data?.data ?? data?.contexts ?? [];
+  },
+
+  getContext: async (contextId: string) => {
+    const res = await api.get(`/contexts/${contextId}`);
     return res.data;
   },
 
-  createGroup: async (data: {
-    name: string;
-    budget: number;
-  }) => {
+  createGroup: async (data: { name: string; description?: string }) => {
     const res = await api.post('/contexts/groups', data);
     return res.data;
   },
 
   joinGroup: async (inviteCode: string) => {
-    const res = await api.post('/contexts/join', {
-      invite_code: inviteCode,
-    });
-
-    return res.data;
-  },
-
-  getContext: async (contextId: string) => {
-    const res = await api.get(`/contexts/${contextId}`);
+    const res = await api.post('/contexts/join', { invite_code: inviteCode });
     return res.data;
   },
 

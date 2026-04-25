@@ -3,20 +3,12 @@ import api from './axios';
 export const balanceApi = {
   getSummary: async (params?: any) => {
     try {
-      const res = await api.get('/auth/balances/summary', { params });
+      const res = await api.get('/balances/summary', { params });
       return res.data;
     } catch (error: any) {
       if (error.response?.status === 422) {
-        console.warn('Balance summary validation failed:', error.response.data);
-
-        return {
-          total_balance: 0,
-          you_owe: 0,
-          you_are_owed: 0,
-          balances: [],
-        };
+        return { total_balance: 0, you_owe: 0, you_are_owed: 0, balances: [] };
       }
-
       throw error;
     }
   },
@@ -26,12 +18,12 @@ export const balanceApi = {
     description?: string;
     context_id?: string;
   }) => {
-    const res = await api.post('/auth/balances/settlements', data);
+    const res = await api.post('/balances/settlements', data);
     return res.data;
   },
 
   getSettlementHistory: async (params?: any) => {
-    const res = await api.get('/auth/balances/settlements', { params });
+    const res = await api.get('/balances/settlements', { params });
     return res.data;
   },
 };

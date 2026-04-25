@@ -6,6 +6,8 @@ import { storageAuth, storageDB, StorageUser } from './storage';
 export type AppContextType = 'none' | 'personal' | 'group';
 
 interface AppState {
+  personalContextId: string | null;
+  setPersonalContextId: (id: string | null) => void;
   context: AppContextType;
   setContext: (context: AppContextType) => void;
   currency: string;
@@ -29,6 +31,7 @@ interface AppState {
 const AppContext = createContext<AppState | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  const [personalContextId, setPersonalContextId] = useState<string | null>(null);
   const [context, setContextState] = useState<AppContextType>('none');
   const [user, setUser] = useState<StorageUser | null>(null);
   const [userProfile, setUserProfile] = useState<any | null>(null);
@@ -201,6 +204,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AppContext.Provider value={{ 
+      personalContextId,
+      setPersonalContextId,
       context, 
       setContext, 
       currency, 
