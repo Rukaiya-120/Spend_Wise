@@ -5,37 +5,181 @@ import { useApp } from '@/lib/app-context';
 import { motion } from 'motion/react';
 import { Wallet, TrendingUp, CreditCard, ChevronRight, Target, Plus, Settings } from 'lucide-react';
 import { BarChart, Bar, ResponsiveContainer, XAxis, Tooltip, Cell } from 'recharts';
-import { storageDB } from '@/lib/storage';
+import { expenseApi, balanceApi } from '@/lib/api';
+import { budgetApi } from '@/lib/budget-api';
 import { cn } from '@/lib/utils';
+import { contextApi } from '@/lib/context-api';
+
+interface Expense {
+  id: string;
+  amount: number;
+  category: string;
+  note?: string;
+  date: string;
+  created_at: string;
+  updated_at: string;
+  user_id?: string;
+  context_id?: string;
+}
+
+interface Budget {
+  id: string;
+  name: string;
+  amount: number;
+  category?: string;
+  period: 'weekly' | 'monthly' | 'yearly';
+  start_date?: string;
+  end_date?: string;
+}
 
 export function PersonalDashboard() {
-  const { user, currency, userProfile, setUserProfile, refreshCount } = useApp();
-  const [isEditingBudget, setIsEditingBudget] = useState(false);
-  const [newBudget, setNewBudget] = useState(userProfile?.personalBudget || 0);
+const { user, currency, userProfile, setUserProfile, refreshCount } = useApp();
 
-  const expenses = React.useMemo(() => {
-    if (!user) return [];
-    return storageDB.expenses.list({
-      userId: user.uid,
-      type: 'personal'
-    });
-  }, [user, refreshCount]);
+const [isEditingBudget, setIsEditingBudget] = useState(false);
+const [newBudget, setNewBudget] = useState(0);
+const [expenses, setExpenses] = useState<Expense[]>([]);
+const [budgets, setBudgets] = useState<Budget[]>([]);
+const [balanceSummary, setBalanceSummary] = useState<any>(null);
+const [loading, setLoading] = useState(true);
+const [personalContextId, setPersonalContextId] = useState<string | null>(null);
+const personalBudget = budgets[0];
+const personalBudgetAmount = Number(
+  personalBudget?.amount || userProfile?.personalBudget || 0
+);
+
+useEffect(() => {
+  setNewBudget(personalBudgetAmount);
+}, [personalBudgetAmount]);
+
+  useEffect(() => {
+    loadData();
+  }, [refreshCount]);
+
+
+const loadData = async () => {
+  try {
+    setLoading(true);
+
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+
+    const [expensesRes, contextsRes, balanceRes] = await Promise.all([
+      expenseApi.getExpenses(),
+      contextApi.getContexts(),
+      balanceApi.getSummary(),
+    ]);
+
+    console.log('Contexts response:', contextsRes);
+
+    const contexts =
+      Array.isArray(contextsRes)
+        ? contextsRes
+        : Array.isArray(contextsRes?.data)
+          ? contextsRes.data
+          : Array.isArray(contextsRes?.contexts)
+            ? contextsRes.contexts
+            : Array.isArray(contextsRes?.data?.contexts)
+              ? contextsRes.data.contexts
+              : [
+                  contextsRes?.personal,
+                  contextsRes?.personal_context,
+                  contextsRes?.data?.personal,
+                  contextsRes?.data?.personal_context,
+                  ...(contextsRes?.groups || []),
+                  ...(contextsRes?.data?.groups || []),
+                ].filter(Boolean);
+
+    const currentUserId = user?.id || user?.uid;
+
+    const personalContext =
+      contexts.find((ctx: any) => {
+        return ctx.type === 'personal' && ctx.owner_id === currentUserId;
+      }) ||
+      contexts.find((ctx: any) => {
+        return ctx.type === 'personal';
+      });
+
+    const contextId = personalContext?.id || null;
+
+    console.log('Selected personal context id:', contextId);
+
+    setPersonalContextId(contextId);
+
+    const budgetsRes = contextId
+      ? await budgetApi.getBudgets({
+          context_id: contextId,
+          month,
+          year,
+        })
+      : [];
+
+    const expenseList = Array.isArray(expensesRes)
+      ? expensesRes
+      : expensesRes?.data || expensesRes?.expenses || expensesRes?.data?.data || [];
+
+    const budgetList = Array.isArray(budgetsRes)
+      ? budgetsRes
+      : budgetsRes?.data || budgetsRes?.budgets || budgetsRes?.data?.data || [];
+
+    setExpenses(
+      expenseList.map((expense: any) => ({
+        ...expense,
+        amount: Number(expense.amount || 0),
+        category: expense.category_name || expense.category || 'Other',
+      }))
+    );
+
+    setBudgets(budgetList);
+    setBalanceSummary(balanceRes);
+  } catch (error: any) {
+    console.error('Failed to load dashboard data:', error.response?.data || error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const totalSpent = expenses.reduce((sum, e) => sum + e.amount, 0);
-  const hasDetails = expenses.length > 0 || (userProfile?.personalBudget > 0);
+  const hasDetails = expenses.length > 0 || budgets.length > 0;
+
 
   const handleUpdateBudget = async () => {
-    try {
-      storageDB.users.update(user!.uid, {
-        personalBudget: Number(newBudget)
-      });
-      setUserProfile({ ...userProfile, personalBudget: Number(newBudget) });
-      setIsEditingBudget(false);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  try {
+    let contextId = personalContextId;
 
+    if (!contextId) {
+      await loadData();
+      contextId = personalContextId;
+    }
+
+    if (!contextId) {
+      alert('No personal context found. Please refresh or log in again.');
+      return;
+    }
+
+    const now = new Date();
+
+    const payload = {
+      context_id: contextId,
+      month: now.getMonth() + 1,
+      year: now.getFullYear(),
+      amount: Number(newBudget),
+    };
+
+    console.log('Budget payload:', payload);
+
+    if (personalBudget?.id) {
+      await budgetApi.updateBudget(personalBudget.id, payload);
+    } else {
+      await budgetApi.createBudget(payload);
+    }
+
+    setIsEditingBudget(false);
+    await loadData();
+  } catch (err: any) {
+    console.error('Failed to update budget:', err.response?.data || err);
+  }
+};
   if (!hasDetails) {
     return (
       <div className="min-h-[calc(100vh-8rem)] flex flex-col items-center justify-center p-6 space-y-8">
@@ -111,15 +255,14 @@ export function PersonalDashboard() {
               {totalSpent.toLocaleString()} <span className="text-xl font-medium text-emerald-200 not-italic opacity-50 uppercase tracking-widest">{currency}</span>
             </h1>
             <p className="text-[10px] font-black text-emerald-200/60 uppercase tracking-[0.3em]">
-              Goal: {userProfile?.personalBudget?.toLocaleString()} {currency}
+              Goal: {personalBudgetAmount.toLocaleString()} {currency}
             </p>
           </div>
 
           <div className="w-full h-4 bg-black/10 rounded-full overflow-hidden">
             <motion.div 
               initial={{ width: 0 }}
-              animate={{ width: `${Math.min((totalSpent / (userProfile?.personalBudget || 1)) * 100, 100)}%` }}
-              className="h-full bg-white rounded-full shadow-[0_0_20px_rgba(255,255,255,0.4)]"
+              animate={{ width: `${Math.min((totalSpent / (personalBudgetAmount || 1)) * 100, 100)}%` }}              className="h-full bg-white rounded-full shadow-[0_0_20px_rgba(255,255,255,0.4)]"
             />
           </div>
         </div>
@@ -193,7 +336,7 @@ export function PersonalDashboard() {
                   <CreditCard className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="font-black italic text-sm dark:text-white uppercase tracking-tight">{expense.title || expense.category}</p>
+                  <p className="font-black italic text-sm dark:text-white uppercase tracking-tight">{expense.category}</p>
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] leading-none mt-1">
                     {new Date(expense.date).toLocaleDateString()}
                   </p>

@@ -23,6 +23,7 @@ interface AppState {
   toggleTheme: () => void;
   showTutorial: boolean;
   setShowTutorial: (show: boolean) => void;
+  refreshAuth: () => void;
 }
 
 const AppContext = createContext<AppState | undefined>(undefined);
@@ -45,6 +46,37 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const triggerRefresh = () => setRefreshCount(prev => prev + 1);
+
+  const refreshAuth = () => {
+    const accessToken = localStorage.getItem('access_token');
+    const userData = localStorage.getItem('user');
+    
+    if (accessToken && userData) {
+      const user = JSON.parse(userData);
+      setUser({
+        uid: user.id?.toString() || user.uid,
+        email: user.email,
+        displayName: user.name || user.displayName
+      });
+      setUserProfile(user);
+      if (user.currency) setCurrencyState(user.currency);
+    } else {
+      const currentUser = storageAuth.getCurrentUser();
+      if (currentUser) {
+        setUser({
+          uid: currentUser.uid,
+          email: currentUser.email,
+          displayName: currentUser.displayName
+        });
+        setUserProfile(currentUser);
+        if (currentUser.currency) setCurrencyState(currentUser.currency);
+      } else {
+        setUser(null);
+        setUserProfile(null);
+        setContextState('none');
+      }
+    }
+  };
 
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
@@ -82,8 +114,52 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const checkAuth = () => {
       try {
-        const currentUser = storageAuth.getCurrentUser();
+        // Check for API auth tokens
+        const accessToken = localStorage.getItem('access_token');
+        const userData = localStorage.getItem('user');
         
+        if (accessToken && userData) {
+          const user = JSON.parse(userData);
+          setUser({
+            uid: user.id?.toString() || user.uid,
+            email: user.email,
+            displayName: user.name || user.displayName
+          });
+          setUserProfile(user);
+          if (user.currency) setCurrencyState(user.currency);
+
+          // Restore persisted state
+          const savedContext = localStorage.getItem('hishab_context') as AppContextType;
+          if (savedContext) setContextState(savedContext);
+
+          const savedGroup = localStorage.getItem('hishab_active_group');
+          if (savedGroup) setActiveGroupState(JSON.parse(savedGroup));
+        } else {
+          // Fallback to old local storage auth for backward compatibility
+          const currentUser = storageAuth.getCurrentUser();
+          
+          if (currentUser) {
+            setUser({
+              uid: currentUser.uid,
+              email: currentUser.email,
+              displayName: currentUser.displayName
+            });
+            setUserProfile(currentUser);
+            if (currentUser.currency) setCurrencyState(currentUser.currency);
+
+            // Restore persisted state
+            const savedContext = localStorage.getItem('hishab_context') as AppContextType;
+            if (savedContext) setContextState(savedContext);
+
+            const savedGroup = localStorage.getItem('hishab_active_group');
+            if (savedGroup) setActiveGroupState(JSON.parse(savedGroup));
+          } else {
+            setUser(null);
+            setUserProfile(null);
+            setContextState('none');
+          }
+        }
+
         // Restore theme
         const savedTheme = localStorage.getItem('hishab_theme') as 'light' | 'dark';
         if (savedTheme) {
@@ -93,29 +169,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
         // Restore tutorial preference
         const tutorialViewed = localStorage.getItem('hishab_tutorial_viewed');
-        if (!tutorialViewed && currentUser) {
+        if (!tutorialViewed && (accessToken || storageAuth.getCurrentUser())) {
           setShowTutorial(true);
-        }
-
-        if (currentUser) {
-          setUser({
-            uid: currentUser.uid,
-            email: currentUser.email,
-            displayName: currentUser.displayName
-          });
-          setUserProfile(currentUser);
-          if (currentUser.currency) setCurrencyState(currentUser.currency);
-
-          // Restore persisted state
-          const savedContext = localStorage.getItem('hishab_context') as AppContextType;
-          if (savedContext) setContextState(savedContext);
-
-          const savedGroup = localStorage.getItem('hishab_active_group');
-          if (savedGroup) setActiveGroupState(JSON.parse(savedGroup));
-        } else {
-          setUser(null);
-          setUserProfile(null);
-          setContextState('none');
         }
       } catch (error) {
         console.error('Error during auth check:', error);
@@ -128,7 +183,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = async () => {
+    // Clear API auth tokens
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('user');
+    
+    // Clear old local storage auth for backward compatibility
     storageAuth.logout();
+    
     setUser(null);
     setUserProfile(null);
     setContextState('none');
@@ -156,7 +217,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       theme,
       toggleTheme,
       showTutorial,
-      setShowTutorial
+      setShowTutorial,
+      refreshAuth
     }}>
       {children}
     </AppContext.Provider>

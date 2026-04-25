@@ -6,6 +6,7 @@ import { Mail, LogIn, User, Lock, ArrowRight, Loader2 } from 'lucide-react';
 
 import { useRouter } from 'next/navigation';
 import { authApi } from '@/lib/auth';
+import { useApp } from '@/lib/app-context';
 
 export default function AuthPage() {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
@@ -16,6 +17,7 @@ export default function AuthPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const router = useRouter();
+  const { refreshAuth } = useApp();
 
  const handleAuth = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -28,17 +30,22 @@ export default function AuthPage() {
         throw new Error('Passwords do not match');
       }
 
-      await authApi.register(name, email, password, confirmPassword);
-    } else {
+      const data = await authApi.register(name, email, password, confirmPassword);
+
+      localStorage.setItem('access_token', data.access_token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+    } 
+    else {
       const data = await authApi.login(email, password);
 
       localStorage.setItem('access_token', data.access_token);
       localStorage.setItem('user', JSON.stringify(data.user));
-
-      router.push('/');
     }
 
-    // Redirect after success
+    // Refresh auth state in context
+    refreshAuth();
+    
+    // Redirect to dashboard
     router.push('/');
   } catch (err: any) {
     setError(

@@ -9,7 +9,7 @@ import { Loader2 } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 
 export function RootContent({ children }: { children: React.ReactNode }) {
-  const { user, loading, context } = useApp();
+  const { user, loading, context, showTutorial, setShowTutorial } = useApp();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -42,7 +42,7 @@ export function RootContent({ children }: { children: React.ReactNode }) {
           <AddExpenseModal />
         </>
       )}
-      <TutorialModal />
+      <TutorialModal isOpen={showTutorial} onClose={() => setShowTutorial(false)} />
     </div>
   );
 }

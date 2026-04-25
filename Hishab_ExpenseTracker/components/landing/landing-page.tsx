@@ -6,7 +6,7 @@ import { Hero } from '@/components/landing/hero';
 import { Features } from '@/components/landing/features';
 import { Footer } from '@/components/landing/footer';
 import { motion } from 'motion/react';
-import api from '@/lib/axios';
+import { expenseApi } from '@/lib/api';
 
 export default function LandingPage() {
 
@@ -17,7 +17,7 @@ export default function LandingPage() {
     const id = '019db8b6-d5de-7040-8852-3ad6c12ce82e';
     const getCategories = async () => {
 
-      const result=  await api.get(`/categories?context_id=${id}`)
+      const result=  await expenseApi.getCategories({ context_id: id })
       console.log(result)
     }
 

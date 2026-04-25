@@ -4,31 +4,56 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Plus, Calendar, Tag, FileText, Loader2, ChevronDown } from 'lucide-react';
 import { useApp } from '@/lib/app-context';
-import { storageDB } from '@/lib/storage';
+import { expenseApi } from '@/lib/api';
 import { cn } from '@/lib/utils';
-
-const CATEGORIES = ['Transport', 'Food', 'Bills', 'Entertainment', 'Shopping', 'Health', 'Other'];
 
 export function AddExpenseModal() {
   const { context, currency, user, userProfile, activeGroup, triggerRefresh } = useApp();
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState(CATEGORIES[1]);
+  const [category, setCategory] = useState('');
+  const [categories, setCategories] = useState<string[]>([]);
   const [showCategories, setShowCategories] = useState(false);
   const [note, setNote] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
 
+  // Load categories when modal opens
+  React.useEffect(() => {
+    if (isOpen) {
+      loadCategories();
+    }
+  }, [isOpen, context, activeGroup]);
+
+  const loadCategories = async () => {
+    try {
+      const params: any = {};
+      if (context === 'group' && activeGroup?.id) {
+        params.context_id = activeGroup.id;
+      }
+      const result = await expenseApi.getCategories(params);
+      setCategories(result.map((cat: any) => cat.name));
+      if (result.length > 0) {
+        setCategory(result[0].name);
+      }
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+      // Fallback to default categories
+      setCategories(['Transport', 'Food', 'Bills', 'Entertainment', 'Shopping', 'Health', 'Other']);
+      setCategory('Food');
+    }
+  };
+
   const resetForm = () => {
     setAmount('');
-    setCategory(CATEGORIES[1]);
+    setCategory(categories.length > 0 ? categories[0] : '');
     setNote('');
     setDate(new Date().toISOString().split('T')[0]);
     setShowCategories(false);
   };
 
   const handleAddExpense = async () => {
-    if (!amount || !user) return;
+    if (!amount || !user || !category) return;
     setLoading(true);
     try {
       const expenseData = {
@@ -36,19 +61,15 @@ export function AddExpenseModal() {
         category,
         note,
         date: new Date(date).toISOString(),
-        userId: user.uid,
-        userName: userProfile?.displayName || user.email,
-        type: context,
-        groupId: context === 'group' ? activeGroup?.id : null,
-        createdAt: new Date().toISOString()
+        context_id: context === 'group' ? activeGroup?.id : undefined,
       };
-      
-      storageDB.expenses.add(expenseData);
+
+      await expenseApi.createExpense(expenseData);
       setIsOpen(false);
       resetForm();
       triggerRefresh();
     } catch (err) {
-      console.error(err);
+      console.error('Failed to add expense:', err);
     } finally {
       setLoading(false);
     }
@@ -139,7 +160,7 @@ export function AddExpenseModal() {
                             className="absolute z-10 bottom-full left-0 right-0 mb-2 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-gray-100 dark:border-slate-800 p-2 overflow-hidden"
                           >
                             <div className="max-h-48 overflow-y-auto space-y-1 scrollbar-none">
-                              {CATEGORIES.map((cat) => (
+                              {categories.map((cat) => (
                                 <button
                                   key={cat}
                                   onClick={() => {

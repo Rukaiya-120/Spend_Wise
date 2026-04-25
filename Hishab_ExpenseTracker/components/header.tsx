@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
 
 export function Header() {
-  const { context, setContext, logout, theme, toggleTheme, user } = useApp();
+  const { context, setContext, signOut, theme, toggleTheme, user } = useApp();
   const [isOpen, setIsOpen] = React.useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
 
@@ -123,7 +123,7 @@ export function Header() {
                     <p className="text-xs font-bold dark:text-white truncate">{user?.email}</p>
                   </div>
                   <button
-                    onClick={() => logout()}
+                    onClick={() => signOut()}
                     className="w-full flex items-center gap-4 p-4 rounded-2xl text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
                   >
                     <LogOut className="w-5 h-5" />
